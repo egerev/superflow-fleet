@@ -1,0 +1,61 @@
+{
+  "$comment": "Worker sessions (Superset agent preset with --settings <this file>): denies tools workers never need and turns off plugins and skills they never load, to cut the first-call context. Copy to ~/.claude/agent-worker-settings.json; WORKER_SETTINGS in config.sh.",
+  "permissions": {
+    "deny": [
+      "Artifact",
+      "Workflow",
+      "SendFeedback",
+      "ReportFindings",
+      "ScheduleWakeup",
+      "AskUserQuestion"
+    ]
+  },
+  "enabledPlugins": {
+    "cowork-plugin-management@synced": false,
+    "data@synced": false,
+    "design@synced": false,
+    "engineering@synced": false,
+    "finance@synced": false,
+    "marketing@synced": false,
+    "productivity@synced": false,
+    "superset@skills-dir": false
+  },
+  "skillOverrides": {
+    "ai-seo": "off",
+    "copy-editing": "off",
+    "copywriting": "off",
+    "cro": "off",
+    "launch": "off",
+    "product-marketing": "off",
+    "humanizer": "off",
+    "humanizer-ru": "off",
+    "impeccable": "off",
+    "mcp-builder": "off",
+    "dataviz": "off",
+    "keybindings-help": "off",
+    "update-config": "off",
+    "loop": "off",
+    "schedule": "off",
+    "workflow-authoring": "off",
+    "plugin-authoring": "off",
+    "fewer-permission-prompts": "off",
+    "init": "off",
+    "artifact-design": "off",
+    "artifact-diagramming": "off",
+    "artifact-capabilities": "off",
+    "anthropic-skills:built-in-browser": "off",
+    "anthropic-skills:chrome-browser": "off",
+    "anthropic-skills:computer-use": "off",
+    "anthropic-skills:deep-research": "off",
+    "anthropic-skills:docs": "off",
+    "anthropic-skills:docx": "off",
+    "anthropic-skills:google-workspace": "off",
+    "anthropic-skills:import-memory": "off",
+    "anthropic-skills:morning": "off",
+    "anthropic-skills:pdf": "off",
+    "anthropic-skills:pptx": "off",
+    "anthropic-skills:skill-creator": "off",
+    "anthropic-skills:web-artifacts-builder": "off",
+    "anthropic-skills:xlsx": "off"
+  }
+}

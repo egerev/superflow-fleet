@@ -1,0 +1,59 @@
+<!doctype html>
+<!-- Owner page template (harness orchestration.md, Owner page). Copy once to <orchestrator dir>/owner-page.html,
+     put each {{L:...}} label in the owner's language once (the copy is kept and edited, never re-copied), fill
+     the other {{placeholders}} per version, publish with bin/owner-page.sh publish "<what changed>".
+     One <article id="q<n>"> per open question; q<n> is the STATE.md WAITING ON OWNER id, kept until the question
+     is answered and never reused, so a pinned comment's anchor names the question. An answered question
+     leaves the questions list and appears once under "answered" in the next digest.
+     The page leaves the machine: no secrets, tokens, credentials, emails, phone numbers, user data, names
+     of people other than the owner, internal hostnames. -->
+<html lang="{{lang}}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{Project}}: {{L:owner}}</title>
+    <style>
+      main { max-width: var(--sp-measure); margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+      .meta { color: var(--sp-muted); }
+      article { border-top: 1px solid var(--sp-border); padding: 1rem 0; }
+      article h3 { margin: 0 0 .5rem; }
+      article h3::before { content: attr(data-q) ". "; color: var(--sp-muted); }
+      dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; margin: 0; }
+      dt { color: var(--sp-muted); }
+      dd { margin: 0; }
+      .rec { font-weight: 600; }
+    </style>
+  </head>
+  <body class="auto">
+    <main>
+      <h1>{{Project}}: {{L:owner}}</h1>
+      <p class="meta">{{date time UTC}} · {{L:private page}} · {{L:to answer: click the question and pin a comment; the orchestrator reads comments on every wake}}</p>
+
+      <section id="questions">
+        <h2>{{L:Questions}}</h2>
+        <article id="q1">
+          <h3 data-q="q1">{{short question}}</h3>
+          <dl>
+            <dt>{{L:What}}</dt><dd>{{the decision, with its full context: the owner does not reread}}</dd>
+            <dt>{{L:Why}}</dt><dd>{{what it unblocks or what breaks without it}}</dd>
+            <dt>{{L:Cost}}</dt><dd>{{time, money, risk}}</dd>
+            <dt>{{L:Options}}</dt><dd>{{a) ... b) ...}}</dd>
+            <dt>{{L:Recommendation}}</dt><dd class="rec">{{the option and the reason}}</dd>
+          </dl>
+        </article>
+      </section>
+
+      <section id="digest">
+        <h2>{{L:Digest}}</h2>
+        <h3>{{L:Answered since}} {{previous digest date time}}</h3>
+        <ul><li>{{q<n> short question — the owner's words — D<n>, what started}}</li></ul>
+        <h3>{{L:Done since}} {{previous digest date time}}</h3>
+        <ul><li>{{merged PR or result, one line, plain name}}</li></ul>
+        <h3>{{L:In progress}}</h3>
+        <ul><li>{{worker task, next event}}</li></ul>
+        <h3>{{L:FYI}}</h3>
+        <ul><li>{{incident or change the owner should know, one plain sentence}}</li></ul>
+      </section>
+    </main>
+  </body>
+</html>

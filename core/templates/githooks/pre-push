@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Refuse pushes that update or delete the protected branch: everything reaches it through a pull
+# request. A guardrail for agent sessions where a ruleset is not available (for example a GitHub
+# plan without rulesets for private repositories); it is not a security boundary.
+# Install once per clone: copy to .githooks/pre-push in the repository (by pull request), then
+#   git config core.hooksPath .githooks
+# Owner override: HARNESS_ALLOW_MAIN_PUSH=1 git push ... (agents never set it).
+set -euo pipefail
+branch=${HARNESS_PROTECTED_BRANCH:-main}
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  if [ "$remote_ref" = "refs/heads/$branch" ] && [ "${HARNESS_ALLOW_MAIN_PUSH:-}" != 1 ]; then
+    echo "pre-push: direct push to $branch is blocked. Open a pull request (branch, PR, green CI, squash)." >&2
+    echo "Owner override: HARNESS_ALLOW_MAIN_PUSH=1 git push ..." >&2
+    exit 1
+  fi
+done
