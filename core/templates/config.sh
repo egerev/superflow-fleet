@@ -27,6 +27,7 @@ ORCH_EFFORT=medium
 ORCH_CLAUDE_FLAGS=
 ORCH_SUCCESSOR_PROMPT=                     # empty: harness modules/superset/templates/orchestrator-successor-prompt.md
 STATE_MAX_AGE_MIN=30
+READ_TIMEOUT_S=30                          # modules/superset/bin/orchestrator-check.sh: bound of each superset/gh hygiene read
 WAKE_AGENT=                                # empty: claude (Superset agent preset each wake relay runs; a preset with a cheaper model cuts its cost)
 
 # Context budgets (core/hooks/context-size.py; orchestration.md, Sessions)

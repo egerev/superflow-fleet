@@ -12,4 +12,4 @@
   ID is primary; new files are anchored to it.
 - Wait for sync B (main push) on your squash and read back; rerun or dispatch a failed B, `Tiden
   drift` or `Tiden health`. Hand writes to Tiden need a maintenance window (the project's Tiden CI
-  document). Details: tiden.md.
+  document).

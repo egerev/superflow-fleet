@@ -2,6 +2,7 @@
 
 Context: <N>k tokens. Brief: <path>. Branch: <branch>. PR: #<n> (<state>). Worktree: <path>.
 Keep old session: <no|yes> (yes = the old session has live subagents; the successor closes nothing; the script reads this line)
+Commands: <harness scripts still to run, e.g. `review-codex.sh sol <task> <report>`, `wait-merge.sh <pr> 60 --main`; or none> (the restart prompt then carries their usage and exit codes)
 
 ## State
 - <what is done, with SHAs, PR numbers, CI run IDs and verdict lines>

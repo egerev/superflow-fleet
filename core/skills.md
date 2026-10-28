@@ -25,6 +25,7 @@ them. Name the skills you used in the DONE block.
 | Stress-test UI with worst-case data | `break-ui` |
 | Pre-ship UI check | `web-design-guidelines` + `agent-browser` screenshots (desktop, mobile, dark) |
 | Drive/test a web app, reproduce a frontend bug | `agent-browser` (interactive); `webapp-testing` (Playwright scripts) |
+| GUI step in a native app or the signed-in system browser (a service setting, a registration form) | `superset:computer` (Cua Driver; limits: worker brief, GUI steps) |
 | Positioning → page copy → editing copy | `product-marketing` → `copywriting` → `copy-editing` |
 | Conversion, launch, AI-search visibility | `cro`, `launch`, `ai-seo` |
 | De-AI prose (posts, articles, docs) | `humanizer` (EN), `humanizer-ru` (RU; score via `uvx ru-humanizer`) |

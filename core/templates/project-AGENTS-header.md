@@ -9,7 +9,9 @@ Harness modules: <superset, tiden, or none>
 
 Harness values: ruleset `<ruleset file>`; required checks `<required checks>`; CI check IDs
 `<check IDs that must not change>`; deploy command `<deploy command>` (promotion tool
-`<tool>`, production doc `<path>`, backup gate `<where>`); security document `<path>`; Tiden
+`<tool>`, production doc `<path>`, backup gate `<where>`); security document `<path>`;
+data-policy document `<path>` (from harness core/templates/DATA-POLICY.md; owner item 2 asks only what it
+does not cover); money cap `Budget: <EUR n/month | unset>` (owner `<D-entry>`; item 3); Tiden
 product `<product id>`, workspace `<workspace id>`, spec prefix `<PREFIX>`; unlinked-tests list
 `<path>`; Tiden CI document `<path>` (and whether `Tiden health` runs); queue share rules
 `<path>`; Effort reference PRs and platform built-ins `<path>`; Fable prompt `<path>`; critical

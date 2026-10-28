@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wave check (tiden.md, Planning an ask, P5; orchestration.md, Lanes): before a wave is dispatched,
+# Wave check (modules/tiden/tiden.md (tiden module), Planning an ask, P5; orchestration.md, Lanes): before a wave is dispatched,
 # fail on Depends cycles, on a card that depends on a card of its own wave, a later wave or no wave,
 # and inside one wave on path overlap or a lane over its limit.
 # Input: the backlog file `estimate` reads: its first Markdown table with title and effort columns,
@@ -12,32 +12,42 @@
 # covers everything under it (`.` covers all); a glob (* ? [) is taken to cover everything that
 # starts with its text before the first wildcard (conservative: such pairs fail, split or reorder).
 # Lane limits: the open cap of a `## Lanes` section in the same file (`- migration (cap 2)`, the line
-# `estimate` reads; a merging cap is not a limit here); a lane not listed has limit 1, stricter than
-# `estimate`, since a wave is dispatched at once. A card without a lane or paths skips that check.
+# `estimate` reads; a merging cap is not a limit here). A `## Lanes` heading, even an empty section,
+# wins and --config is then ignored. With none, the open caps of `lanes` in the `estimate` config.json
+# (`{"migration": 2}` or `{"migration": {"open": 2}}`): --config FILE; else, with $ESTIMATE_DIR set,
+# only its config.json; else the nearest .estimate/config.json at or above the backlog's directory,
+# then at or above the current one (a dir from `estimate link` is not followed: pass --config).
+# A lane not listed or without an open cap has limit 1, stricter than `estimate`, since a wave is
+# dispatched at once; - in the lane cell is no lane.
 # Waves: the wave column (whole numbers; empty or - for none), or --plan FILE, the output of
-# `estimate plan --json [--agents n]` (the waves of its chosen agent count). Without waves only cycles
-# are checked. Cards `estimate` runs one after another in a capped lane of one wave still count
-# against the limit: move one to another wave.
-# Usage: plan-check.sh <backlog.md> [--plan FILE]
-# Exit: 0 clean, 1 findings (one FAIL line each), 2 usage or an unreadable file or table.
+# `estimate plan --json [--agents n]` (the waves of its chosen agent count). With no card in a wave,
+# no lane or no paths column, or a card in a wave with an empty lane cell or no paths, the wave checks
+# cannot run: a NOT CHECKED line and exit 3 (P5 treats it as no check: fill them and rerun). Cards
+# `estimate` runs one after another in a capped lane of one wave still count against the limit: move
+# one to another wave.
+# Usage: plan-check.sh <backlog.md> [--plan FILE] [--config FILE]
+# Exit: 0 clean, 1 findings (one FAIL line each), 2 usage or an unreadable file, table or config, 3 not checked
+# (as above; cycles and the rest were checked, a FAIL still exits 1).
 set -euo pipefail
-usage() { echo "usage: plan-check.sh <backlog.md> [--plan FILE]" >&2; exit 2; }
+usage() { echo "usage: plan-check.sh <backlog.md> [--plan FILE] [--config FILE]" >&2; exit 2; }
 [ $# -ge 1 ] || usage
 backlog=$1; shift
-plan=''
+plan='' config=''
 while [ $# -gt 0 ]; do
   case "$1" in
     --plan) [ $# -ge 2 ] && [ -n "$2" ] || usage; plan=$2; shift ;;
+    --config) [ $# -ge 2 ] && [ -n "$2" ] || usage; config=$2; shift ;;
     *) echo "unknown argument: $1" >&2; usage ;;
   esac
   shift
 done
 [ -f "$backlog" ] || { echo "no backlog file: $backlog" >&2; exit 2; }
 [ -z "$plan" ] || [ -f "$plan" ] || { echo "no plan file: $plan" >&2; exit 2; }
-exec python3 -I - "$backlog" "$plan" <<'PY'
-import json, posixpath, re, sys
+[ -z "$config" ] || [ -f "$config" ] || { echo "no config file: $config" >&2; exit 2; }
+exec python3 -I - "$backlog" "$plan" "$config" <<'PY'
+import json, os, posixpath, re, sys
 
-backlog, plan = sys.argv[1], sys.argv[2]
+backlog, plan, config = sys.argv[1], sys.argv[2], sys.argv[3]
 COLS = {'id': ('id', '#'), 'title': ('title', 'item', 'task'), 'sp': ('effort', 'sp', 'e'), 'key': ('key',),
         'depends': ('depends', 'depends on', 'deps'), 'lane': ('lane',), 'paths': ('paths', 'expected paths'),
         'wave': ('wave',)}
@@ -108,14 +118,49 @@ for line in lines[start + 1:]:
     if wave in NONE: wave = None
     elif not re.fullmatch(r'\d+', wave): usage(f'{backlog}: card {cid}: wave must be a whole number, not {wave!r}')
     cards[cid] = {'key': get('key').strip('`'), 'depends': depends(get('depends')),
-                  'lane': get('lane').strip('` ') or None, 'paths': paths(get('paths')), 'wave': wave}
+                  'lane': lane if (lane := get('lane').strip('` ')) not in NONE else None,
+                  'paths': paths(get('paths')), 'wave': wave, 'nolane': lane in NONE[1:]}
     order.append(cid)
-caps, inside = {}, False
+caps, inside, section = {}, False, False
 for line in lines:
     if m := re.match(r'^\s*#{1,6}\s+(.*?)\s*$', line):
-        inside = m.group(1).lower().startswith('lanes'); continue
+        inside = m.group(1).lower().startswith('lanes'); section = section or inside; continue
     if inside and (m := LANE.match(line)) and (m.group(2) or 'open').lower() == 'open' and int(m.group(3)) >= 1:
         caps[m.group(1)] = int(m.group(3))
+
+
+def config_path():
+    """--config; else, with $ESTIMATE_DIR set, only its config.json; else the nearest .estimate/config.json
+    at or above the backlog's directory, then at or above the current directory."""
+    if config: return config
+    if os.environ.get('ESTIMATE_DIR'):
+        p = os.path.join(os.environ['ESTIMATE_DIR'], 'config.json')
+        return p if os.path.isfile(p) else None
+    for start in (os.path.dirname(os.path.abspath(backlog)), os.getcwd()):
+        d = start
+        while True:
+            if os.path.isfile(p := os.path.join(d, '.estimate', 'config.json')): return p
+            if (up := os.path.dirname(d)) == d: break
+            d = up
+    return None
+
+
+# No `## Lanes` section: the open caps of `lanes` in the `estimate` config.json (as `lane_caps` reads it).
+if not section and (cpath := config_path()):
+    try: cfg = json.loads(read(cpath))
+    except ValueError as err: usage(f'{cpath}: not JSON ({err})')
+    if not isinstance(cfg, dict): usage(f'{cpath}: not a JSON object')
+    lanes = {} if cfg.get('lanes') is None else cfg['lanes']
+    if not isinstance(lanes, dict): usage(f'{cpath}: lanes must be {{"lane": {{"open": 1}}}} or {{"lane": 1}}')
+    good = lambda v: isinstance(v, int) and not isinstance(v, bool) and v >= 1
+    for name, v in lanes.items():
+        if isinstance(v, dict) and v and set(v) <= {'open', 'merging'} and all(good(x) or x is None for x in v.values()):
+            v = v.get('open')
+        elif not good(v):
+            print(f'plan-check: {cpath}: lane {name!r} needs a whole number >= 1 for "open" and/or "merging"; ignored', file=sys.stderr)
+            continue
+        if v: caps[name] = v
+    print(f'plan-check: lane limits from {cpath}', file=sys.stderr)
 
 
 def resolve(ref):
@@ -164,7 +209,13 @@ else:
     labels = sorted({cards[c]['wave'] for c in order if cards[c]['wave']}, key=int)
     waves = [[c for c in order if cards[c]['wave'] == lb] for lb in labels]
 wave_of = {x: n for n, w in enumerate(waves) for x in w}
-if not waves: print('plan-check: no waves (no wave column and no --plan): cycles only', file=sys.stderr)
+unchecked = [why for why, miss in (('no card in a wave (no wave column or --plan, or empty waves)', not wave_of),
+                                   ('no lane column', cols['lane'] is None),
+                                   ('no paths column', cols['paths'] is None)) if miss]
+# A card in a wave with an empty lane cell (- is "no lane") or no paths is not checked either.
+for k, empty in (('lane', lambda x: not cards[x]['lane'] and not cards[x]['nolane']), ('paths', lambda x: not cards[x]['paths'])):
+    xs = [x for w in waves for x in w if empty(x)]
+    if cols[k] is not None and xs: unchecked.append(f'no {k} for {", ".join(xs)}')
 
 
 def overlap(a, b):
@@ -201,5 +252,6 @@ for n, w in enumerate(waves):
 
 for f in fails: print(f)
 print(f'plan-check: {len(cards)} cards, {len(waves)} waves ({len(wave_of)} cards in a wave), {len(fails)} findings')
-sys.exit(1 if fails else 0)
+if unchecked: print(f'plan-check: NOT CHECKED: {"; ".join(unchecked)}: lane and path checks need waves and a lane and paths for each card in one')
+sys.exit(1 if fails else 3 if unchecked else 0)
 PY

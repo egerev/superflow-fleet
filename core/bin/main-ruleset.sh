@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Main branch ruleset: the owner runs it (process.md section 2, item 1); agents prepare the JSON.
+# Main branch ruleset: an agent runs it after Astra r1 on the JSON (process.md section 2).
 # Usage: main-ruleset.sh check | create | remove-classic | rollback
 # Run from the root of a clean checkout of the default branch that holds RULESET_JSON (and
 # PROTECTION_JSON when the repository still has classic branch protection). Every step asserts

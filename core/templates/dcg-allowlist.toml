@@ -1,0 +1,25 @@
+# dcg allowlist for agent-owned cleanup (harness README, Requirements). Append to ~/.config/dcg/allowlist.toml with
+# @WORKTREES@ replaced by the absolute worktrees directory (no `~`: dcg does not expand it). Everything else stays blocked.
+# Check: bash tests/dcg-allowlist.test.sh. Undo: delete these two entries from the allowlist file.
+
+# `rm -r` of an agent's temp entries in the current directory, with the session's cwd at least two levels below
+# @WORKTREES@ (<project>/<worktree>; the worktrees root and a project directory are out). Each operand is one path
+# component named `tmp...` (`tmp`, `tmp_build`, `tmp-out`; letters, digits, `_.@+-`): no `/` (no traversal
+# through a symlink, no absolute, `~`, `$VAR` or glob) and no `..`; the whole line is that one command (a `cd` or
+# a second command on the line falls back to dcg's verdict). `-f` stays blocked. A symlink operand removes the
+# link, not its target. Why `tmp...` only: dcg scopes by cwd, not by session, and a directory holding several
+# worktrees (`<project>/fix` for branches `fix/...`) is that deep too; so no branch or workspace is named `tmp...`
+# (README, Requirements) and a sibling worktree stays out. Scratchpad and /tmp paths need no entry: dcg passes them.
+[[allow]]
+pattern = '^rm -r (?!\S*\.\.)tmp[A-Za-z0-9_.@+-]*( (?!\S*\.\.)tmp[A-Za-z0-9_.@+-]*)*$'
+risk_acknowledged = true
+paths = ["@WORKTREES@/*/*", "@WORKTREES@/*/*/**"]
+reason = "agents remove their own tmp* temp files in their worktree (owner 10-27)"
+
+# `docker rm` of named test containers `<proj>_<name>` (lowercase project prefix and `_`), optional `-v`. dcg already
+# passes such names without a hyphen; this entry adds names whose hyphen token it misreads as `-f`. `-f` and `--force`
+# stay blocked.
+[[allow]]
+pattern = '^docker (container )?rm( -v)? [a-z0-9]+_[A-Za-z0-9_.-]+( [a-z0-9]+_[A-Za-z0-9_.-]+)*$'
+risk_acknowledged = true
+reason = "agents remove the test containers they started (owner 10-27)"

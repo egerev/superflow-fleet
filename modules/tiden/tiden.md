@@ -17,18 +17,72 @@ An Epic describes a product outcome, a Feature groups capabilities, a story is i
 reviewable behaviour with acceptance criteria. Markers and `Delivers:` lines name stories only.
 Keep IDs, parents, components, sources and test links stable.
 
-Status, merged source, coverage and deployment are separate facts. `Backlog` is planned work
-(ready with a `Ready:` or legacy `Accepted:` line; without either, a draft until a review branch
-adds `Ready:`), `Active` work being implemented, `Review` an implementation or acceptance
-awaiting evidence, `Done` only the stated delivered scope. A status update never weakens a
-contract, hides a failing test or removes it from verification.
+Status, merged source, coverage and deployment are separate facts. Agents keep every card's
+status true by its evidence and never ask the owner to move one (owner 10-27): stories,
+features and epics alike.
+- `Backlog`: planned work not started, or stopped before its PR merged (ready with a `Ready:` or
+  legacy `Accepted:` line; without either, a draft until a review branch adds `Ready:`). Enters at
+  the ready merge, or back from `Active` when the work stops with neither a live worker nor an
+  open PR (an open PR whose worker is gone stays `Active`: orchestration.md, Abandoned pull request).
+- `Active`: a worker took it (its brief names the card, or `start-intent` when the intent loop
+  runs) and its PR is not merged. Leaves at the merge. A card its building PR writes reaches main
+  at that merge, in `Review` or `Done` by the evidence, never `Backlog`.
+- `Review`: its code merged and some criterion still waits: on another card, an open live or
+  measured check, a human look, or a fix for a criterion found unmet after `Done`.
+- `Done`: every criterion proven (below); only the stated delivered scope.
+- A feature or epic follows its children only: `Backlog` while no child has started, `Done` when
+  every child is `Done` and its own criteria are proven the same way, `Review` when every child is
+  `Done` and an own criterion is not, else `Active`.
+- Back out of `Done` to `Review` (or `Active` when work restarts) when a criterion is found unmet,
+  with the evidence (the failing run, the command output or report) recorded on the card in the
+  same write.
+
+Who moves: the orchestrator moves a card to `Active` when it dispatches its worker; the worker
+moves it at its merge to `Review` or `Done` by the evidence; the orchestrator's status sweep
+(orchestration.md, Orchestrator) moves parents and fixes all drift. A due move never blocks
+work. A status update never weakens a contract, hides a failing test or removes it from
+verification.
 
 An open live or measured check is written in the spec as `[open: live]` or `[open: measured]` on
 its criterion or evidence line. Whoever records its evidence (version, environment, run or
 measurement, date) removes the marker in the same edit, and only then. A card with an open check
-stays in `Review`; where the project runs a `Tiden health` report, it fails on a `Done` spec that
-carries one (text inside inline code or a fenced block is ignored, so a spec may document the
-marker).
+stays in `Review` until that evidence is recorded (next paragraph); where the project runs a
+`Tiden health` report, it fails on a `Done` spec that carries one (text inside inline code or a
+fenced block is ignored, so a spec may document the marker).
+
+A card moves to `Done` only when every acceptance criterion is proven by one of:
+- a test linked to it (`# spec:` or `// spec:`) that asserts the criterion and ran and passed, not
+  skipped, on the green `main` push run of the squash whose PR `Delivers:` it;
+- for a criterion no test can assert (a deploy, an image, a registry or config state, a release;
+  the evidence line says why), checkable evidence that it holds, taken after that squash on `main`
+  or the deployed version: a CI log line, registry or image data, a command's output, or a git
+  commit or diff (only for a criterion about the repository's content), recorded on the card as a
+  link or quote with the run, commit or command it came from, the version, the environment and
+  the date. A measured criterion (`[open: measured]`) closes only with the
+  number, which meets the criterion's bound, and the command that produced it.
+
+A criterion that needs a human look at the running product with real users keeps the card in
+`Review` until the owner's words on that look are recorded on the card (quoted, dated); the agent
+then moves it without asking. Such a card is a digest FYI line naming what to look at, never an
+owner ask, and is not stale while it waits. One without
+such proof keeps it in `Review` as well; an `[open: live]` criterion whose check is CI, registry
+or command data closes like the evidence above. Every move is a hand write in the maintenance window the orchestrator opens (its own
+dispatch move in the next one; a project without sync B: by hand); a `Done` move happens after sync B's
+read-back and records in the same edit on the evidence line the `main` run id and, per
+criterion, the test ids or the evidence (removing the criterion's open marker, as above). A
+worker lists its moves made or due, each with its evidence, in its DONE message, the orchestrator
+its sweep's moves in the digest.
+
+Agents delete cards and weaken criteria (owner 10-27, process.md section 2). An agent deletes only
+a card no test (`# spec: <ID>`, a repository grep) and no merged PR (`Delivers: <ID>`, a `gh`
+search) names, as a hand write in the maintenance window: a duplicate after the read-back shows
+the card it duplicates; any other (stale, deferred, superseded) after one Fable round on its text,
+the evidence and the card that replaces it, if any, agrees. A card whose `Ready:` names the owner
+as asker goes only as a duplicate; removing it otherwise, or behaviour a linked card holds, is
+item 1. A criterion is weakened only on evidence (unreachable as written, or contradicted by a
+later owner decision, quoted) and after one Fable round agrees; a weakening that changes what the
+user gets is the owner's (process.md section 2, item 1). Each is one "Decided by agents" digest
+line (orchestration.md) whose undo is the deleted card's title and text or the old criterion.
 
 Main holds maintained behaviour, known defects and ready cards (planned work, owner 10-26). An
 idea is a draft on a proposal branch holding one readiness unit (a card, or an epic with its
@@ -72,8 +126,8 @@ audits. A worker that finds work outside its task reports it to the orchestrator
    rules (its AGENTS.md or workflow document); where it sets none, about 70% product and 30%
    engineering by Effort, with one refactoring slot per wave (owner 10-17, 10-24). No ready
    card stays deferred without a condition or a date: when the orchestrator orders the backlog
-   (orchestration.md, Backlog order) it queues each deferred card or proposes its deletion to the
-   owner; deletion stays owner-kept (owner 10-19: "I do not want to leave things for later").
+   (orchestration.md, Backlog order) it queues each deferred card or deletes it (Specs and
+   statuses; owner 10-19: "I do not want to leave things for later").
 
 ```text
 Title: <plain words: what changes for the owner>
@@ -110,13 +164,66 @@ solve it` is a 30–60 minute study
 (open source, standards, built-ins of the platforms the project uses), and the worker
 re-checks it for 10–15 minutes before starting.
 
+### Brainstorm and vision
+
+A ritual with the owner in the orchestrator's live chat (owner 10-26) for: the owner's idea that
+would add to or change who the product is for, what it builds or its Not in scope (VISION.md);
+a brand-new project; or the owner asking for a brainstorm by name. In a project without VISION.md
+the orchestrator proposes it when the owner's ask sets such a direction; the owner decides. Any
+other ask above Effort 8 or with a product fork goes to Planning an ask, a smaller one to Card
+intake; an agent's idea stays a draft (Card intake step 1).
+
+- **B1 Kickoff.** The owner tells the idea (voice is fine). The orchestrator restates it in a few
+  lines (problem, for whom, what success looks like), asks only what the roles need to start, and
+  opens `brainstorm-<slug>.md` in its directory, named in STATE.md NOW, for each round's synthesis
+  and the owner's answers verbatim, so a successor or the writer can resume.
+- **B2 Roles.** Four role subagents in parallel (Agent tool, one message): product and user voice
+  (Fable medium); architect and skeptic (Opus high: whether to build it at all, risks, cost; for a
+  new project 2–3 stacks with trade-offs); marketing and growth, and designer (Sonnet medium each).
+  Each gets the idea, the owner's answers, the last synthesis and, in an existing project,
+  VISION.md and a `product-context` summary of at most 30 lines; no file dumps. Each replies in at
+  most 300 words: 2–3 options with trade-offs, the main risks, at most 3 questions for the owner.
+- **B3 Synthesis.** In the chat, as Owner talk (orchestration.md): each option and disagreement
+  with its role's name, the orchestrator's own view, and at most 5 questions, each with options
+  and a recommendation; "do as you recommend" accepts all.
+- **B4 Rounds.** At most 3 rounds, the first included; the owner's "enough", or no open product
+  fork, ends earlier. The owner's own ideas go to the next round as options the roles weigh; a
+  question to one role by name reruns only that role. After each round the orchestrator appends
+  the answers to the file and to one decision log entry. B1–B5 questions stay in chat, not on the
+  owner page.
+- **B5 Vision.** A new project's B1–B4 run in the chat of any orchestrator the owner starts them
+  in; then one chat question: the stack (the architect's options) and creating the repository. On
+  the owner's yes, README New project: the entry with its Scope becomes D1, and the file moves to
+  its directory and leaves the first orchestrator's STATE.md.
+  Then a writer worker (`research-vision-<slug>`, Opus high) drafts VISION.md in the project
+  repository from modules/tiden/templates/VISION.md and the file; each direction line traces to an owner
+  answer. The PR is AUTO+review: one Fable round on the draft and the owner's answers only (each
+  line traced, Not in scope concrete, each stage with an observable sign), no Codex. The
+  writer merges after that round: the ritual's answers are the owner's review, with no separate
+  yes (owner 10-27); the digest FYI names the problem, for whom, Not in scope, the stages and
+  which stage gets cards now. A later VISION.md PR is AUTO+review with one Fable round;
+  one changing who it is for, what we build or Not in scope quotes the owner's words, one
+  changing the stages quotes the merged epics or decisions behind the change.
+- **B6 Plan.** The first stage goes to Planning an ask (Card intake when it is one card) with
+  VISION.md and the file in the planner's or writer's brief; P1's lens subagents and P2 run only
+  for what the vision leaves open. Each epic's Problem cites its VISION.md stage as source; P4's
+  Fable round gets VISION.md. A later stage is planned in its turn, so its cards do not go stale.
+- **B7 Refresh.** Weekly (a wake automation, orchestration.md, Wake-ups) where VISION.md exists,
+  when a large ask goes to Planning an ask, and at P7 Close, a Sonnet subagent compares VISION.md
+  with merged epics, open cards and owner decisions since. No drift is one log line; other drift
+  is a digest FYI line and a writer worker opens the VISION.md PR and the stale cards' review
+  branch (Ready merge). Only drift that changes who it is for, what we build or Not in scope is
+  one decision brief (orchestration.md, Owner asks), and the writer waits for its answer. Deleting cards and
+  weakening criteria: Specs and statuses.
+
 ### Planning an ask
 
 An owner ask or research outcome bigger than one PR (expected Effort above 8) or with an open
-product fork is planned here (owner 10-26). The orchestrator runs P0, P5's waves and P6; the
-planner the rest.
+product fork is planned here (owner 10-26). The orchestrator runs P0, P5's waves, P6 and P7;
+the planner the rest.
 
-- **P0 Depth.** Rate novelty (new module, infrastructure mechanism or external integration),
+- **P0 Depth.** A new direction or project has Brainstorm and vision first (above). Rate
+  novelty (new module, infrastructure mechanism or external integration),
   blast radius (shared files, data or production paths) and ambiguity (one fork with clear
   options is medium; several forks or criteria the ask leaves open, high) low, medium or high.
   All low is light: no planner, the step-2 writer plans. Otherwise a planner worker
@@ -135,19 +242,25 @@ planner the rest.
   decisions quoted; stories of at most 8 SP, one PR each, with the step-2 fields. Open refactor and
   defect cards on the same paths go into the epic's `History:` for the refactor slot of the wave
   before the story that shares them (or as its Depends on).
-- **P4 Reviews.** Step 3: one Fable round on the epic with its stories (split check), one Astra
-  r1 on its contract stories together, self-check on small ones.
-- **P5 Ready and waves.** The ready merge (below), then waves: `estimate plan --agents <n>`
-  where Estimates is on (orchestration.md; `backlog pull` reads main), else from Depends on and
-  Lane; then `core/bin/plan-check.sh` when present (cycles, lane limits, path overlap in a wave). A
-  failure reorders the waves; a story that must split goes back through P3–P5 on a new branch.
+- **P4 Reviews.** Step 3: one Fable round on the epic with its stories (split check; VISION.md
+  where it exists), one Astra r1 on its contract stories together, self-check on small ones.
+- **P5 Ready and waves.** The ready merge (below). Then the orchestrator's waves: the backlog table
+  (`backlog pull` where Estimates is on, orchestration.md; else one it writes in the same shape,
+  plan-check.sh header) gets lane and paths columns from each story's `Lane:` and `Expected paths:`
+  (- for no lane). With Estimates: `estimate plan --json --agents <n> > plan.json`, then
+  `core/bin/plan-check.sh <backlog> --plan plan.json`; else a wave column from Depends on and Lane, then
+  `core/bin/plan-check.sh <backlog>`. Exit 3 (NOT CHECKED: no card in a wave, a missing column, or a card
+  in a wave without lane or paths) is no check: fill them and rerun; no wave goes out before exit 0.
+  A FAIL (exit 1) reorders the waves; a story that must split goes back through P3–P5 on a new
+  branch.
   The waves go into STATE.md as a PLAN block; its stories enter the step-5 queue in wave order.
-- **P6 Owner FYI, not a gate.** On the owner page (orchestration.md, Owner page; one message while
-  the owner is online): what the owner will notice, the waves, total SP, hours and money where
-  Estimates is on, the defaults assumed. No owner wait before dispatch.
+- **P6 Owner FYI, not a gate.** In the next digest's FYI (orchestration.md, Owner page): what
+  the owner will notice, the waves, total SP, hours and money where Estimates is on, the
+  assumptions made. No owner wait before dispatch.
 - **P7 Close.** After its last story merges, leftovers become cards and the PLAN block's remaining
   lines go to the archive. After 4 or more PRs or a wave of parallel stories, the orchestrator
-  starts the epic review (reviews.md, Rounds 9); it does not hold the close.
+  starts the epic review (reviews.md, Rounds 9); it does not hold the close. Then the vision
+  refresh (Brainstorm and vision, B7) where VISION.md exists.
 
 ### Ready merge
 
@@ -170,7 +283,7 @@ A PR on a ready card names its stories on main and no proposal branch, so check 
 Epic, a Feature or another card in a preview. A later criterion edit goes on a
 `review/<name>` branch: the PR's own while coding, merged by sync B; before work starts, one
 reviewed like the card, refreshing `Ready:`, and merged by the job. Check A also enforces the order:
-it fails a story that is neither on main nor on the named branch. Weakening a criterion stays the owner's.
+it fails a story that is neither on main nor on the named branch. Weakening a criterion: Specs and statuses.
 
 ### Writing a card or spec text
 
@@ -225,8 +338,8 @@ anchored to the changed files and those the body names, each marked `named (Deli
 `named (Spec)` or `anchor only`. It suggests flags; the author still checks every listed spec and
 flags it by hand when needed. Anything a PR missed is the backstop's: `Tiden drift` and
 `Tiden health` report it after the main push, and a follow-up PR's branch fixes it. Maintenance
-windows (the project's Tiden CI document) remain only for hand repairs that B cannot do, a hand ready merge, bulk
-restructuring and deletions.
+windows (the project's Tiden CI document) remain only for hand repairs that B cannot do, a hand ready merge, a
+status moves and the status sweep (Specs and statuses), bulk restructuring and deletions.
 
 The intent loop is paused (owner 10-19, when the pilot ended): no PR runs `tiden intent
 start`, settle and close or uses the `start-intent` and `capture-intent` skills, and none needs a
@@ -236,13 +349,13 @@ times out reading an intent branch; close counts specs a rebase pulled in, reads
 instead of the PR's and times out reading branch specs). Three feature PRs in a row that the
 orchestrator picks run the full loop as the exception, each on a worker CLI 0.40 or later (0.38
 still counts files and specs merged in from main; probe 10-24), and each settles and closes without a
-timeout or an owner risk acceptance; a failure restarts the count. The orchestrator reports the
+timeout or a finding left open; a failure restarts the count. The orchestrator reports the
 trial's start and result in the digest, and the loop returns with that report.
 
 Criteria change only through a card's branch reviewed with its PR or by the ready-merge job;
 no daily delta audit runs.
 
-## Commands (CLI 0.41.0)
+## Commands (CLI 0.42.0)
 
 ```sh
 tiden intent skip --reason "<why>"                                   # first Tiden call
@@ -296,6 +409,64 @@ Tool notes: `tiden spec get` needs the UUID (find it with `tiden spec list [--br
 blocks it), use `--format json` and jq; a Tiden read costs about $0.21, so read saved JSON
 instead of live when possible. CLI 0.41 writes a repo-local `.tiden/config.json` on first use,
 so the project gitignores `.tiden/`. Keep `autoUpdate` off in `~/.tiden/config.json`; update the
-CLI alone with `tiden upgrade --binary-only`. A plain `tiden upgrade`, `setup` and `permissions`
-rewrite skills, hooks and `~/.claude/settings.json` allow rules (the owner's, process.md section 2),
-so run them only in an owner-approved task and diff those files afterwards.
+CLI alone with `tiden upgrade --binary-only --version v<TIDEN_CLI_VERSION>` (the release tag has the `v`; without
+it the download 404s; Tiden CLI version, below). A plain `tiden upgrade` also drops the version
+pin: never run it. `tiden setup` and `permissions` rewrite skills, hooks and
+`~/.claude/settings.json` allow rules; an agent runs them only after a pin bump merges and the
+binary is on the pin (Tiden CLI version, below): it copies those files to its scratchpad first,
+diffs them afterwards and puts the old allow rules back at once; a new allow rule returns only
+after Astra r1 (process.md section 2). Then `tiden-version.sh check`.
+
+### Tiden CLI version
+
+Owner decision 10-26: every project runs one Tiden CLI version and moves to a new one on the
+same day. The pin: the version and the release's SHA-256 of each platform in use (CI runners,
+the local machine); `modules/tiden/bin/tiden-version.sh` reads these lines, a project's CI reads them from its
+pinned copy. A CI on another platform gets its line here first.
+
+```sh
+TIDEN_CLI_VERSION=0.42.0
+TIDEN_CLI_SHA256_linux_amd64=691850035886a903f67e3650e578786db1cd7418ab7d7296e9666ef7f3724380
+TIDEN_CLI_SHA256_darwin_arm64=9ef396aadb7a8d2e695b64682f2a5c381080b7cb1e35eac5aa8feb391bf01909
+```
+
+- A project's CI installs Tiden with this step (after `actions/checkout`), never a version or
+  checksum of its own, so a pinned-copy refresh moves its CI:
+
+  ```sh
+  pin="$GITHUB_WORKSPACE/docs/harness/modules/tiden/tiden.md"
+  ver=$(sed -n 's/^TIDEN_CLI_VERSION=//p' "$pin" | head -n 1)
+  sum=$(sed -n 's/^TIDEN_CLI_SHA256_linux_amd64=//p' "$pin" | head -n 1)
+  [ -n "$ver" ] && [ -n "$sum" ] || { echo "no Tiden pin in $pin" >&2; exit 1; }
+  curl --fail --silent --show-error --location -o "$RUNNER_TEMP/tiden.tar.gz" \
+    "https://github.com/qase-tms/homebrew-tap/releases/download/v$ver/tiden_linux_amd64.tar.gz"
+  echo "$sum  $RUNNER_TEMP/tiden.tar.gz" | sha256sum --check --strict
+  tar -xzf "$RUNNER_TEMP/tiden.tar.gz" -C "$RUNNER_TEMP" tiden
+  echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+  ```
+
+  A project with its own install moves once, in this order: a pinned-copy refresh PR to a
+  harness version with the pin, then its own PR that replaces the install with this step.
+- Local binary (binary install; a plain `tiden upgrade` drops the version pin):
+  `tiden upgrade --binary-only --version "v$(git -C ~/agent-harness show origin/main:modules/tiden/tiden.md | sed -n 's/^TIDEN_CLI_VERSION=//p')"`.
+  Scripts that call `tiden` on PATH use it.
+- The harness orchestrator runs `tiden-version.sh check` on start and before each digest. LAG: a
+  newer release, or the local binary or a project's pinned copy off the pin; RULE: a release URL
+  or `TIDEN_CLI_VERSION` value written in a workflow; BAD: a checksum that differs from the
+  release or the pin; WARN: a Tiden download the check cannot read (verify it by hand).
+- New release, the same day `check` shows it: the harness orchestrator downloads
+  `tiden_darwin_arm64.tar.gz` of the new tag into `mktemp -d`, checks it against that release's
+  `checksums.txt`, extracts it and runs `tiden-version.sh smoke <that binary>` (the reads
+  consumers parse: `product list`, `spec list` with pagination, `spec get`; a consumer that starts
+  parsing another command adds it to the smoke). No `tiden upgrade` before the pin PR merges. It
+  reads the release notes for removed or changed flags, then bumps the pin by PR with the
+  checksum of each platform the pin covers (`PLATFORMS` in modules/tiden/bin/tiden-version.sh; not every line of
+  `checksums.txt`); the PR body quotes the smoke's OK lines and the notes check, and
+  its reviewer refuses it without them. After the merge it moves the local binary and sends every
+  project's orchestrator one ask. A failed smoke keeps the pin; the digest names the command.
+- A project's orchestrator, on the ask: a pinned-copy refresh PR (README, How a project consumes
+  it) merged the same day, then a reply with its squash SHA. A refresh that cannot merge that day
+  is BLOCKED to the harness orchestrator with the failing step; the harness digest names every
+  project still LAG and why. A breakage found after a bump reverts the pin by PR, and the same
+  ask follows. So every Tiden release is a harness version and one refresh PR per project;
+  tiden.md is never copied alone.

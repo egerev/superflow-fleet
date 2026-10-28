@@ -10,11 +10,20 @@ rounds and the verdict. A project's review notes add its deployed-version list, 
   `codex exec --disable hooks -m gpt-6.1-sol -c model_reasoning_effort=xhigh -c service_tier="default" "<task>" </dev/null`.
   Astra (`-m gpt-6-astra`, process.md section 5) only for r1 on security, access, data,
   owner-level or product-behaviour changes. (standing approval, owner 10-19.)
-- One Codex reviewer per round: Astra or Sol, never both on the same item. A scoped recheck (r2),
-  also of a card and also after an Astra r1, runs on Sol, not an Anthropic subagent (owner 10-21, 10-23).
+- One Codex reviewer per round: Astra or Sol, never both on the same item. A scoped recheck (r2, r3 or
+  the over-cap r4; Rounds 4, 5), also of a card and also after an Astra r1, runs on Sol, not an Anthropic subagent (owner 10-21, 10-23),
+  and never on Astra unless the project's review notes say so (owner 10-27).
 - Process text (Rounds 8): no Codex; an Opus subagent reviewer plus Fable. Test-only pull
   requests (test files and their fixtures only), Codex-written too, are AUTO (process.md section
-  3): no review round.
+  3): no review round, in this harness too (Rounds 8).
+- VISION.md (modules/tiden/tiden.md (tiden module), Brainstorm and vision): AUTO+review, one Fable round, no Codex; it is
+  never the AUTO of non-process docs. That ritual round (B5's, on the ritual's answers; a later PR's one
+  Fable round) is its whole review: no extra Opus subagent or Rounds 8 round (owner 10-27; process.md
+  section 3).
+- Pinned-copy refresh in a project (README, Pinned copy; `core/bin/pin-refresh.sh`): one round, by the
+  author's Sonnet subagent, that checks only that each copied file equals `git -C ~/agent-harness show
+  <sha>:<file>`, the diff holds only those files and the two version pointers. Clean is no blocking or
+  major finding; the Rounds 8 checklist does not apply (the copied text was reviewed here). Owner 10-27.
 - Codex-written code: an Opus subagent. Product cards: one Fable round (Card review below).
 - Name the model in the pull request's `Review record:`; put `Model: <model> <effort>` (the
   author's) in every pull request description.
@@ -24,7 +33,8 @@ rounds and the verdict. A project's review notes add its deployed-version list, 
 
 A review is one packet of files in the author's scratchpad and one report file. Reviewers have no
 Tiden access and get projections, never whole exports, other reviewers' reports or the review
-history.
+history. One packet directory serves all rounds of a pull request: `core/bin/review-codex.sh` counts
+the rounds there (`review-rounds`, Rounds 5).
 
 - `task.md`: the task goal and the card's criteria, the round, and for a recheck the open
   findings of r1. An Astra task starts with the four fixed questions of process.md section 5,
@@ -73,8 +83,8 @@ and broken failure isolation (a fail-closed stop of a critical path the project 
 call audio, collection or backup, is itself a failure).
 
 A product-policy risk the owner accepted (an owner decision quoted in the card or brief) is no
-finding: the report lists it under `Owner should know`. Every other finding keeps its severity
-(owner 10-18, 10-24).
+finding: the report lists it under `Owner should know`. It is a product choice, not a known
+defect accepted; every other finding keeps its severity (owner 10-18, 10-24).
 
 It returns one line:
 
@@ -85,42 +95,65 @@ VERDICT: APPROVE | CHANGES REQUIRED — <b> blocking, <m> major, <n> minor — <
 ## Rounds
 
 1. One round covers the whole packet: code and criterion text together. One run per round:
-   never a duplicate run; an empty or failed run goes to the orchestrator, not to a rerun.
+   never a duplicate run; an empty or failed run goes to the orchestrator, not to a rerun. The one
+   exception is `core/bin/review-codex.sh`'s own single retry when Codex is at capacity before any
+   report; it is the same run.
 2. Scope freezes when the round starts; an optional addition goes to a follow-up card. A stop
    order or a change to what the owner keeps reaches the author at once.
 3. The author fixes every finding in one pass and searches for every term the fixes changed.
 4. After a blocking or major finding, one recheck (r2) runs on Sol (Routing; for a no-Codex review, the subagent that raised it): the fix
    range and the open findings, tests only for the fix, no fresh exploration of the
    repository. It is never a fresh full review, and a recheck's minor opens no round.
-5. Reviews stop at r2. An r3 runs only for a new blocking finding that r2 raised. A blocking or
-   major finding stays open until a recheck confirms the fix; never merge with
-   it unconfirmed. A fix made after the cap (r2 done) gets one scoped recheck on Sol,
-   outside the round count, recorded as `recheck` in `Review record:`; a regression test that
-   fails before the fix and passes after it is the precondition, not a substitute. A new blocking
-   there, or a finding still open, is BLOCKED to the orchestrator, who picks a smaller scope, a
-   follow-up card or a revert. Merging with an open blocking or major finding accepts a known
-   risk, which the owner keeps.
+5. The cap is r2. After it one scoped recheck (r3, Rounds 4) runs by itself, with no BLOCKED and
+   no orchestrator go-ahead; that one r3 covers both a new blocking finding that r2 raised and a
+   blocking or major fix made after r2. A regression test that fails before the fix and passes
+   after it is its precondition, not a substitute. The orchestrator may grant at most one more
+   round per pull request: the over-cap r4, also a scoped recheck, recorded as `over-cap` with
+   its reason in `Review record:` (`core/bin/review-codex.sh --over-cap "<reason>"`, which refuses r4
+   without it and any r5). Plan and doc reviews (process text, Rounds 8, and plans other than those of Rounds 7) stop at r3:
+   no over-cap round. Cards (Rounds 6) and production operation plans (Rounds 7) keep their one
+   recheck: no r3 or r4. A blocking or major finding stays open until a recheck confirms the fix;
+   never merge with it unconfirmed. A finding still open after the last round allowed is the
+   worker's BLOCKED (needs: a smaller scope, a follow-up card or a revert). The orchestrator picks
+   the cheapest that keeps the defect off `main`: drop the part with the finding, close or narrow
+   the pull request and redo the part as a follow-up card, or revert a cause already merged; a
+   merged cause that breaks production or a user-facing path or exposes data is an `incident`
+   (orchestration.md, Owner asks). It lists the pick under "Decided by agents" (orchestration.md).
+   Nobody accepts a known risk (process.md section 2, owner 10-27). Only when all three would miss
+   a deadline the owner's words set (DECISIONS.md) or the card's date does it go to the owner, as a
+   `product` ask: move the deadline or cut the scope, never merge with the finding open.
 6. Cards: a contract card gets Astra r1 and at most one scoped recheck on Sol; a small card gets only
    the author's self-check.
-7. A production operation plan gets Astra r1 and at most one Sol recheck before the owner authorizes it.
+7. A production operation plan gets Astra r1 and at most one Sol recheck. An Astra r1 with no
+   blocking or major finding, or a Sol recheck that confirms its fixes, authorises the plan
+   (process.md section 2 gates: a fresh verified backup, the undo); the agent runs it and lists it
+   under "Decided by agents". A plan that itself decides one of process.md section 2's five goes to
+   the owner for that item only. A finding still open after the recheck: the plan does not run; a
+   narrowed plan is a new plan (Astra r1 again) or a follow-up card.
 8. Process text (AGENTS.md, CLAUDE.md, `.claude/`, skills, brief and prompt templates, the
-   project's operations docs and Tiden CI document, and this harness) is never AUTO (process.md
-   section 3) and gets the author's checklist: each changed rule matches the
-   documents that refer to it, nothing from process.md section 2 changes without the owner's
-   quoted words, process.md and AGENTS.md stay within their word budgets and the PR names the
-   words it replaced. Astra reviews it only when it changes how a gate works.
+   project's operations docs and Tiden CI document, and this harness's documents and templates; its
+   scripts are code and a test-only PR here is AUTO, Routing) is never AUTO (process.md section 3)
+   and gets the author's checklist: each changed rule matches the documents that refer to it,
+   no change lets agents decide a process.md section 2 item or weakens a section 2 gate without the owner's quoted words, process.md and
+   AGENTS.md stay within their word budgets and the PR names the words it replaced. Astra reviews
+   it only when it changes how a gate works. A pinned-copy refresh skips this checklist: its owner
+   words are the harness PR's (Routing). VISION.md is never AUTO either; its review is the
+   brainstorm ritual's Fable round, nothing more (Routing).
 9. Epic review: when an epic closes after 4 or more merged PRs (its stories and refactor-slot PRs)
-   or a wave that ran stories in parallel, the orchestrator starts one Sol run once the last
-   squash's `main` run is green, on `git diff <base>..<last squash> -- <paths those PRs changed>`
+   or a wave that ran stories in parallel, the orchestrator starts one Sol run (Rounds 1, its
+   capacity retry included) once the last squash's `main` run is green, on
+   `git diff <base>..<last squash> -- <paths those PRs changed>`
    (base: the parent of the first of them to merge). Its packet is `task.md` (the stories with
    their PRs, the other PRs that changed those paths in the range, the question: only cross-PR
    issues no single PR review could see, such as contracts that disagree, duplicated or dead code,
    an epic criterion no PR covers), `diff.patch` and `specs.md` (the epic's specs); no `pr.md` or
    `context.md`. An epic of process text gets an Opus subagent instead; over the Codex line it
    waits for the next window as a STATE.md NEXT line. It counts in no PR's rounds and does not
-   hold the close; its verdict line goes to the archive with the PLAN block. A blocking or major
+   hold the close; its verdict line is appended to the archived PLAN block. A blocking or major
    finding is a current defect (a review branch, tiden.md; first in the queue, Card intake step 5)
-   and an open known risk on the owner page (a revert is one option); never a reopened PR. The
+   that the orchestrator puts first in the queue or answers with a revert (as in Rounds 5; one that
+   breaks production or a user-facing path or exposes data is an `incident`), listed under "Decided
+   by agents" with its undo; never a reopened PR. The
    orchestrator files or drops minor ones and skips a gap P7 already carded.
 
 ## Codex budget
@@ -142,7 +175,7 @@ the meter (`rate_limits.primary.used_percent` in the newest file under `~/.codex
 before it starts a review. Under the line every review starts. Over it Astra starts only
 risk-path reviews; the rest wait or, at the orchestrator's call, go to an Opus reviewer subagent
 with the same packet and questions. Risk
-paths: process.md section 2 items, release, deploy and the project's promotion tool, CI gate
+paths: process.md section 2 items and gates, release, deploy and the project's promotion tool, CI gate
 integrity, security and access, migrations, and the live-action code the project lists. Every
 Codex run passes `-c service_tier="default"`: the priority tier costs about twice as much per
 token.
@@ -150,16 +183,20 @@ token.
 Standing approval (owner 10-19): the orchestrator may tune review routing within this document
 (round cap, recheck scope, severity rubric, the Codex line and the reviewer for non-risk code)
 and reports each change in the morning digest. It never removes Astra r1 from a risk path,
-the never-downgraded list above, the recheck rules of Rounds 4 and 5 or anything in process.md section 2.
+the never-downgraded list above, the recheck rules of Rounds 4 and 5 or a process.md section 2 item or gate,
+and never raises the round cap past Rounds 5 (one over-cap round per pull request). Routing
+(reviewer, model, level, rounds, an over-cap round, the Codex budget, who merges) is never asked of
+the owner (orchestration.md, Owner asks): the orchestrator decides it within this document.
 
 ## Pull request lines
 
 - `Change path:` comes from the changed files and process.md section 2. Grep the diff for its
   signals (the project's grep). A hit is an item to read, not a verdict; no hit does not make a
   PR AUTO. Read the changed blocks of every listed file (a workflow's `permissions:` and jobs, SQL
-  grants, secret mounts); in doubt the path is OWNER. A card's own level label adds no merge gate.
+  grants, secret mounts); in doubt the path is AUTO+review with Astra. A card's own level label adds no merge gate.
 - `Review record:` one line per reviewer and round with its counts, naming one Codex reviewer per
-  round, e.g. `Review record: Astra r1 1 blocking, 2 major; Sol r2 0/0`. No findings ledger or per-finding
+  round, e.g. `Review record: Astra r1 1 blocking, 2 major; Sol r2 1 major; Sol r3 1 major; Sol r4
+  over-cap (<reason>) 0/0`. No findings ledger or per-finding
   machine lines are kept.
 - `Owner note:` for a product PR, what the owner will notice in daily use.
 - `Spec impact:` and `Settle text:` on every PR (tiden.md, One Tiden branch per pull request).

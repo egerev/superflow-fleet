@@ -11,7 +11,8 @@ Plan, follow-ups and session notes: <log file> (read on demand, never on start).
   `modules/superset/bin/orchestrator-restart.sh [--keep-old] <old name>`, a new terminal in this workspace).
 - New worker (forecast first, orchestration.md, Estimates): `superset workspaces create --local --project <superset project id> --name <type>-<slug>
   --branch <branch> --skip-branch-prefix --base-branch main --agent <worker agent preset id>
-  --model <model> --effort <effort> --prompt "Read and follow <orchestrator dir>/briefs/common.md and <task brief>."`
+  --model <model> --effort <effort> --prompt "Read and follow <orchestrator dir>/briefs/common.md and <task brief>. Your orchestrator is <your session name>."` (the name
+  filled in at each dispatch, never once in this file: it changes on every restart)
   Briefs via the Write tool. `--agent claude` only for a worker that needs tools the preset turns off.
 - Hosts: `<none | name, ssh-target, machineId>`; this project's orchestrator and workers run there (orchestration.md, Hosts).
 - List this project only: `superset workspaces list --local --project <superset project id> --json | jq -r '.[] | select(.archivedAt==null) | "\(.id) \(.name)"'`.
@@ -24,9 +25,12 @@ Plan, follow-ups and session notes: <log file> (read on demand, never on start).
 - Estimate: `<estimate data dir>` (optional; turns on orchestration.md, Estimates; omit the line to opt out).
 
 ## Reviews and cost
+- Budget: `<EUR n/month | unset>` without asking, monthly-cancellable spend only (owner `<D-entry>`; for example
+  EUR 50/month). Spend above it, any annual payment and any hardware: owner item 3 (process.md
+  section 2); unset or still a placeholder: any spend is the owner's. Copy it into AGENTS.md Harness values too.
 - Codex: `CODEX_DAILY_POINTS` (`pace` or points) plus `CODEX_LINE_OFFSET` in config.sh on the shared meter (`core/bin/codex-meter.sh`); reviewer routing exceptions: `<none or list>`.
 - Owner talk: `<language>`; capacity `<n workers in parallel>`; host cap `<n>`.
 
 ## Tool quirks
-- <for example: dcg blocks agent deletions (the owner runs them with !); false positives (README, Requirements);
-  Tiden output only as --format json + jq; codex needs </dev/null>
+- <for example: dcg allowlist installed (agents remove their own temp files and test containers); false positives
+  (README, Requirements); Tiden output only as --format json + jq; codex needs </dev/null>

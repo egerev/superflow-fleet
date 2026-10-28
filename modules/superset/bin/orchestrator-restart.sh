@@ -1,20 +1,23 @@
 #!/usr/bin/env bash
 # Orchestrator self-restart (orchestration.md, Orchestrator self-restart): a new terminal in the
 # orchestrator's own Superset workspace, never a new workspace. The successor reads STATE.md,
-# announces its name to live workers and then closes this terminal. The new terminal's ID goes to
+# records its name (modules/superset/bin/boss-of.sh set), announces it to live workers and then closes this terminal. The new terminal's ID goes to
 # <orchestrator dir>/orch-terminal, so wake automations (modules/superset/bin/wake.sh) wake the successor, not this session.
 # Usage: orchestrator-restart.sh [--keep-old] <old orchestrator name> [old terminal id]
 #   --keep-old (or HARNESS_KEEP_OLD=1, or a line "Keep old session: yes" in STATE.md): the prompt has no
 #   close step (the old session has live subagents). Otherwise the close step is generated here and put
 #   where the template has {CLOSE_STEP} (after the successor has read STATE.md); the template itself
 #   must not hold a `superset terminals` command. HARNESS_DRY_RUN=1 prints the command only.
-# Config: ORCH_WORKSPACE_ID, ORCH_MODEL, ORCH_EFFORT; optional ORCH_CLAUDE_FLAGS (word-split),
+# Before the successor starts, the old name goes to the address registry (modules/superset/bin/boss-of.sh set; PROJECT in the config): a
+# held lock or an unwritable registry stops the restart before any terminal is created (a dry run writes nothing).
+# A template without a `boss-of.sh set` step is refused like one without {CLOSE_STEP}.
+# Config: PROJECT, ORCH_WORKSPACE_ID, ORCH_MODEL, ORCH_EFFORT; optional ORCH_CLAUDE_FLAGS (word-split),
 # ORCH_SUCCESSOR_PROMPT (file; {OLD_NAME}, {STATE}, {WORKSPACE}, {ORCH_DIR}, {CLOSE_STEP} are replaced), STATE_MAX_AGE_MIN.
 set -euo pipefail
 # shellcheck source=core/lib/config.sh
 . "$(dirname "$0")/../../../core/lib/config.sh"
 harness_load_config
-require ORCH_WORKSPACE_ID ORCH_MODEL ORCH_EFFORT
+require PROJECT ORCH_WORKSPACE_ID ORCH_MODEL ORCH_EFFORT
 keep_old=
 [ "${HARNESS_KEEP_OLD:-}" != 1 ] || keep_old=1
 if [ "${1:-}" = --keep-old ]; then keep_old=1; shift; fi
@@ -34,6 +37,9 @@ max=${STATE_MAX_AGE_MIN:-30}
 [ -n "$(find "$state" -mmin "-$max" 2>/dev/null)" ] || die "STATE.md is older than $max min: rewrite it first (step 1)"
 # New harness scripts get their bin/ link here (a non-link file of the same name is kept).
 if [ -z "${HARNESS_DRY_RUN:-}" ]; then harness_link_scripts "$ORCH_DIR" --add || die "cannot add the bin/ links of new harness scripts to $ORCH_DIR/bin"; fi
+# The address registry (modules/superset/bin/boss-of.sh) holds the old name until the successor records its own (template step),
+# so a project that never ran `boss-of.sh set` has a row from its first restart on.
+if [ -z "${HARNESS_DRY_RUN:-}" ]; then "$(dirname "$0")/boss-of.sh" set "$old" >/dev/null || die "cannot record $old in the address registry (modules/superset/bin/boss-of.sh)"; fi
 tpl=${ORCH_SUCCESSOR_PROMPT:-$(harness_root)/modules/superset/templates/orchestrator-successor-prompt.md}
 [ -f "$tpl" ] || die "no successor prompt template: $tpl"
 # The close step is generated here, never read from the template: a template (a project copy included)
@@ -41,6 +47,9 @@ tpl=${ORCH_SUCCESSOR_PROMPT:-$(harness_root)/modules/superset/templates/orchestr
 grep -q '^{CLOSE_STEP}$' "$tpl" || die "$tpl has no {CLOSE_STEP} line (modules/superset/templates/orchestrator-successor-prompt.md): migrate the copy"
 # Checked on the joined text: a command wrapped over lines is still a command.
 prompt=$(grep -v '^<!--' "$tpl" | tr '\n' ' ')
+# Without the set step the registry keeps the old name after the close, and every send to it fails (harness 0.35.0).
+printf '%s' "$prompt" | grep -Eq 'boss-of\.sh[[:space:]]+set' \
+  || die "$tpl has no boss-of.sh set step (modules/superset/templates/orchestrator-successor-prompt.md): migrate the copy"
 ! printf '%s' "$prompt" | grep -Eq 'terminals[[:space:]]+close' || die "$tpl holds a close command: use the {CLOSE_STEP} line"
 # The successor records itself as the wake target (wake.sh target) before any close, so a lost
 # create response below never leaves wakes pointing at a closed terminal.

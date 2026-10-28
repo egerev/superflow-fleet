@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Zero-token orchestrator watcher: prints one line only when something worth a look changes.
-# Watches open and recently merged PRs, failing checks, the project's worker workspaces, and the
+# Watches open and recently merged PRs, failing checks, the project's worker workspaces, the
+# owner page's button answers (ANSWER lines, when <orchestrator dir>/owner-page.id exists), and the
 # state of each worker agent (`superset snapshot`, `superset agents explain`; Superset CLI 1.39+):
 # AGENT lines when one goes idle, blocked or exited or its terminal is gone, STALL when a working
 # turn sends no agent event for STALL_MIN minutes, SNAPSHOT when the agent states cannot be read.
@@ -17,6 +18,8 @@ state_dir=${WATCH_STATE_DIR:-${TMPDIR:-/tmp}/$(basename "$ORCH_DIR")-watch}
 mkdir -p "$state_dir"
 prev=""
 snapwarn=0
+answers="" answarn=0
+tb=$(command -v timeout || command -v gtimeout || true)
 # A decimal number without a leading zero, at most 12 digits (state records, event times).
 is_num() { case "$1" in ''|*[!0-9]*|0?*) return 1 ;; esac; [ "${#1}" -le 12 ]; }
 while true; do
@@ -109,6 +112,23 @@ workspaces: $ws"
   elif [ "$snapwarn" = 0 ]; then
     echo "SNAPSHOT failed (superset workspaces list or snapshot): agent states not checked until it works"
     snapwarn=1
+  fi
+  # Owner page answers (orchestration.md, Owner page): one ANSWER line per new or changed answer
+  # press that is not yet handled; a failed or slow read (bounded, 150 s) is reported once and
+  # changes nothing, so the other checks keep their rounds.
+  if [ -s "$ORCH_DIR/owner-page.id" ]; then
+    if [ -n "$tb" ] && now_ans=$("$tb" 150 "$(dirname "$0")/owner-page.sh" pending 2>/dev/null); then
+      [ "$answarn" = 0 ] || echo "ANSWERS readable again"
+      answarn=0
+      while read -r q aid; do
+        [ -n "$q" ] || continue
+        grep -qxF "$q $aid" <<<"$answers" || echo "ANSWER $q on the owner page: run owner-page.sh answers"
+      done <<<"$now_ans"
+      answers=$now_ans
+    elif [ "$answarn" = 0 ]; then
+      echo "ANSWERS not read (owner-page.sh pending failed): owner page answers not checked until it works"
+      answarn=1
+    fi
   fi
   sleep "${WATCH_INTERVAL_S:-120}"
 done

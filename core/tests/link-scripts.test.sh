@@ -20,6 +20,16 @@ harness_link_scripts "$tmp" --add >/dev/null
 check "nothing missing after add" "" "$(harness_link_scripts "$tmp")"
 check "own file kept as a file" "file" "$([ -L "$tmp/bin/wake.sh" ] && echo link || echo file)"
 check "new link target" harness-exec.sh "$(readlink "$tmp/bin/owner-page.sh")"
+# new-orchestrator.sh links every harness bin/*.sh but the launcher and creator, and keeps a project's own file.
+mkdir -p "$tmp/orch/bin"; touch "$tmp/orch/bin/wake.sh"
+bash "$root/bin/new-orchestrator.sh" demo "$tmp/orch" >/dev/null
+want=$(cd "$root/bin" && find . -name '*.sh' | sed 's|^\./||' | grep -vxE 'harness-exec.sh|new-orchestrator.sh|wake.sh' | sort)
+got=$(cd "$tmp/orch/bin" && find . -type l | sed 's|^\./||' | sort)
+# Every script next to the creator is linked (the export's creator may add enabled modules' links too).
+check "new-orchestrator links every script" "" "$(comm -23 <(echo "$want") <(echo "$got"))"
+check "new-orchestrator keeps own file" "file" "$([ -L "$tmp/orch/bin/wake.sh" ] && echo link || echo file)"
+bash "$root/bin/new-orchestrator.sh" demo "$tmp/orch" >/dev/null
+check "refresh keeps the same links" "$got" "$(cd "$tmp/orch/bin" && find . -type l | sed 's|^\./||' | sort)"
 mkdir "$tmp/ro" "$tmp/ro/bin"; chmod 555 "$tmp/ro/bin"
 rc=0; harness_link_scripts "$tmp/ro" --add >/dev/null 2>&1 || rc=$?
 chmod 755 "$tmp/ro/bin"

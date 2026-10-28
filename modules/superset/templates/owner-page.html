@@ -1,10 +1,20 @@
 <!doctype html>
 <!-- Owner page template (harness orchestration.md, Owner page). Copy once to <orchestrator dir>/owner-page.html,
      put each {{L:...}} label in the owner's language once (the copy is kept and edited, never re-copied), fill
-     the other {{placeholders}} per version, publish with bin/owner-page.sh publish "<what changed>".
+     the other {{placeholders}} per version (all owner-facing text in the owner's language, plain words), publish with bin/owner-page.sh publish "<what changed>".
      One <article id="q<n>"> per open question; q<n> is the STATE.md WAITING ON OWNER id, kept until the question
-     is answered and never reused, so a pinned comment's anchor names the question. An answered question
-     leaves the questions list and appears once under "answered" in the next digest.
+     is answered and never reused. data-kind is one of the five kinds the owner keeps (process.md sec. 2):
+     product, user-data, money, publish or hands; publish refuses a question without one (the others are the
+     agents' to decide: list them under "Decided by agents"). data-options lists the answer buttons, separated by "|" (yes/no, or the
+     option letters of the Options line, the same words every time). A press stores {id, rev, question, choice,
+     comment} under answer:q<n> in the owner's private page storage; rev fingerprints the item's text and
+     options, so an answer to an older wording shows as stale. `owner-page.sh answers` reads it, `ack` shows
+     the D-number, `reply` a question back. An answered question leaves the questions list and appears once
+     under "answered" in the next digest. "Decided by agents" lists what agents decided since the previous
+     digest, one <article id="r<n>"> each (r<n> never reused, kept for one digest), with its undo; its button
+     reverses it: the press is an answer:r<n> read, acked (the reversal's D-number) and replied like a question's.
+     Do not edit the block with id="owner-page-answers" (style and
+     script): it is the same for every project, and `owner-page.sh upgrade` replaces it with a newer one.
      The page leaves the machine: no secrets, tokens, credentials, emails, phone numbers, user data, names
      of people other than the owner, internal hostnames. -->
 <html lang="{{lang}}">
@@ -22,22 +32,47 @@
       dt { color: var(--sp-muted); }
       dd { margin: 0; }
       .rec { font-weight: 600; }
+      @media (max-width: 30rem) {
+        dl { grid-template-columns: 1fr; }
+        dt { margin-top: .5rem; }
+      }
+    </style>
+    <style id="owner-page-answers">
+      .status { margin: .25rem 0; color: var(--sp-muted); }
+      .status:empty { display: none; }
+      .answer { margin-top: .75rem; }
+      html { -webkit-tap-highlight-color: transparent; }
+      /* 16px: iOS zooms into a smaller input and stays zoomed */
+      .answer textarea { display: block; box-sizing: border-box; width: 100%; min-height: 4.5rem;
+        font: inherit; font-size: 16px; }
+      .choices { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
+      article button { min-height: 44px; min-width: 5.5rem; padding: 0 1rem; font: inherit;
+        touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+      article button:active { opacity: .7; }
+      article.closed dl, article.closed .answer { display: none; }
+      .reopen[hidden] { display: none; }
+      @media (max-width: 30rem) { .choices button { flex: 1 1 40%; } }
     </style>
   </head>
   <body class="auto">
-    <main>
+    <main data-l-send="{{L:Send comment only}}" data-l-comment="{{L:Comment (optional)}}"
+          data-l-sent="{{L:Sent}}" data-l-recorded="{{L:Recorded as}}" data-l-reply="{{L:Reply}}"
+          data-l-change="{{L:Change}}" data-l-saving="{{L:Saving}}" data-l-open="{{L:open}}"
+          data-l-readonly="{{L:Sign in to Superset to answer here, or pin a comment}}"
+          data-l-failed="{{L:Not saved}}" data-l-wait="{{L:try again in a minute}}">
       <h1>{{Project}}: {{L:owner}}</h1>
-      <p class="meta">{{date time UTC}} · {{L:private page}} · {{L:to answer: click the question and pin a comment; the orchestrator reads comments on every wake}}</p>
+      <p class="meta">{{date time UTC}} · {{L:private page}} · <span id="open-count"></span> <span id="readonly"></span></p>
 
       <section id="questions">
         <h2>{{L:Questions}}</h2>
-        <article id="q1">
+        <p class="meta">{{L:Press a button to answer; a comment is optional. The item closes and the orchestrator records the answer.}}</p>
+        <article id="q1" data-kind="{{product|user-data|money|publish|hands}}" data-options="{{L:Yes}}|{{L:No}}">
           <h3 data-q="q1">{{short question}}</h3>
           <dl>
-            <dt>{{L:What}}</dt><dd>{{the decision, with its full context: the owner does not reread}}</dd>
-            <dt>{{L:Why}}</dt><dd>{{what it unblocks or what breaks without it}}</dd>
+            <dt>{{L:What}}</dt><dd>{{what it is, in plain words, with its full context: the owner does not reread}}</dd>
+            <dt>{{L:Why}}</dt><dd>{{why it matters: what it unblocks or what breaks without it}}</dd>
             <dt>{{L:Cost}}</dt><dd>{{time, money, risk}}</dd>
-            <dt>{{L:Options}}</dt><dd>{{a) ... b) ...}}</dd>
+            <dt>{{L:Options}}</dt><dd>{{each option and what it does: a) ... b) ...}}</dd>
             <dt>{{L:Recommendation}}</dt><dd class="rec">{{the option and the reason}}</dd>
           </dl>
         </article>
@@ -47,6 +82,14 @@
         <h2>{{L:Digest}}</h2>
         <h3>{{L:Answered since}} {{previous digest date time}}</h3>
         <ul><li>{{q<n> short question — the owner's words — D<n>, what started}}</li></ul>
+        <h3>{{L:Decided by agents}}</h3>
+        <article id="r1" data-options="{{L:Reverse}}">
+          <h3 data-q="r1">{{the decision, one plain line}}</h3>
+          <dl>
+            <dt>{{L:Why}}</dt><dd>{{the reason and the gate it passed (review, backup)}}</dd>
+            <dt>{{L:Undo}}</dt><dd>{{what reversing does}}</dd>
+          </dl>
+        </article>
         <h3>{{L:Done since}} {{previous digest date time}}</h3>
         <ul><li>{{merged PR or result, one line, plain name}}</li></ul>
         <h3>{{L:In progress}}</h3>
@@ -55,5 +98,118 @@
         <ul><li>{{incident or change the owner should know, one plain sentence}}</li></ul>
       </section>
     </main>
+    <script id="owner-page-answers">
+      // Answer buttons (harness owner-page.sh): a press writes answer:q<n> in the viewer's private
+      // page storage; the orchestrator reads it with the CLI and writes ack:q<n> (same scope) that
+      // names the answer id it recorded (d) or answered (reply).
+      (async () => {
+        const D = document.querySelector("main")?.dataset || {};
+        const L = (k, d) => D[k] || d;
+        // Questions (q<n>) and the digest's reverse items (r<n>) answer the same way; the count is the questions'.
+        const items = [...document.querySelectorAll("#questions article[id^='q'], #digest article[id^='r']")];
+        const asks = items.filter((a) => a.id.startsWith("q"));
+        const P = { scope: "private" };
+        // The item's revision; owner-page.sh computes the same from the page source.
+        const rev = (art) => {
+          const s = ((art.dataset.options || "") + " " + art.textContent).replace(/\s+/g, " ").trim();
+          let h = 0x811c9dc5;
+          for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193) >>> 0;
+          return h.toString(16).padStart(8, "0");
+        };
+        const newId = () => globalThis.crypto?.randomUUID?.()
+          || Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+        const count = () => {
+          const c = document.getElementById("open-count");
+          const open = asks.filter((a) => !a.classList.contains("closed")).length;
+          if (c) c.textContent = L("lOpen", "open") + " " + open + " / " + asks.length;
+        };
+        const store = window.superset?.storage;
+        const ready = store ? await store.ready.catch(() => false) : false;
+        const me = ready ? store.viewer?.userId : null;
+        let canWrite = Boolean(ready && store.writable);
+        const buttons = [];
+        const readonly = () => {
+          canWrite = false;
+          buttons.forEach((b) => { b.disabled = true; });
+          const n = document.getElementById("readonly");
+          if (n) n.textContent = "· " + L("lReadonly", "Sign in to Superset to answer here, or pin a comment");
+        };
+        // Private scope: the viewer's own record only.
+        const one = (recs) => (recs || []).find((r) => !me || r.userId === me) || null;
+        const aid = (a) => (a ? a.value?.id || a.updatedAt : null);
+        for (const art of items) {
+          const q = art.id, r = rev(art);
+          const title = art.querySelector("h3")?.textContent.trim() || q;
+          const status = document.createElement("p"), state = document.createElement("span");
+          const reopen = document.createElement("button");
+          status.className = "status"; reopen.className = "reopen"; reopen.textContent = L("lChange", "Change");
+          reopen.onclick = () => { art.classList.remove("closed"); reopen.hidden = true; count(); };
+          status.append(state, " ", reopen);
+          (art.querySelector("h3") || art.firstChild).after(status);
+          const box = document.createElement("div"), text = document.createElement("textarea");
+          const row = document.createElement("div");
+          box.className = "answer"; row.className = "choices"; text.placeholder = L("lComment", "Comment (optional)");
+          text.setAttribute("aria-label", text.placeholder);
+          box.append(text, row); art.append(box);
+          let answer = null, ack = null, busy = false;
+          const mine = [];
+          const enable = () => mine.forEach((b) => { b.disabled = busy || !canWrite; });
+          const show = () => {
+            const id = aid(answer);
+            const ours = ack && (answer ? ack.value?.id === id : true);
+            const recorded = ours && ack.value?.d, replied = ours && answer && ack.value?.reply;
+            const sent = answer ? [answer.value?.choice, answer.value?.comment].filter(Boolean).join(" — ") : "";
+            state.textContent = recorded ? L("lRecorded", "Recorded as") + " " + ack.value.d
+              : replied ? L("lReply", "Reply") + ": " + ack.value.reply
+              : answer ? L("lSent", "Sent") + ": " + sent : "";
+            art.classList.toggle("closed", Boolean(recorded || (answer && !replied)));
+            reopen.hidden = !art.classList.contains("closed") || Boolean(recorded);
+            status.hidden = !state.textContent;
+            count();
+          };
+          const send = async (choice) => {
+            const comment = text.value.trim();
+            if (busy || !canWrite || (!choice && !comment)) return;
+            busy = true; enable();
+            state.textContent = L("lSaving", "Saving") + "…";
+            const value = { id: newId(), rev: r, question: title, choice, comment };
+            try {
+              await store.set("answer:" + q, value, P);
+              answer = one(await store.getAll("answer:" + q, P)) || { value, updatedAt: "" };
+              text.value = "";
+            } catch (e) {
+              const code = e?.code || "error";
+              if (code === "revoked" || code === "unauthenticated") readonly();
+              state.textContent = L("lFailed", "Not saved") + " (" + code + ")"
+                + (code === "rate_limited" ? ", " + L("lWait", "try again in a minute") : "");
+              busy = false; enable();
+              return;
+            }
+            busy = false; enable(); show();
+          };
+          const choices = (art.dataset.options || "").split("|").map((s) => s.trim()).filter(Boolean);
+          for (const c of [...choices, ""]) {
+            const b = document.createElement("button");
+            b.textContent = c || L("lSend", "Send comment only");
+            b.onclick = () => send(c);
+            mine.push(b); buttons.push(b); row.append(b);
+          }
+          enable();
+          if (ready) {
+            try {
+              answer = one(await store.getAll("answer:" + q, P));
+              ack = one(await store.getAll("ack:" + q, P));
+              store.subscribe("answer:" + q, (recs) => { answer = one(recs); show(); }, P);
+              store.subscribe("ack:" + q, (recs) => { ack = one(recs); show(); }, P);
+            } catch (e) {
+              if (e?.code === "revoked") readonly();
+            }
+          }
+          show();
+        }
+        if (!canWrite) readonly();
+        count();
+      })();
+    </script>
   </body>
 </html>
